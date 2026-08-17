@@ -11,21 +11,20 @@ import (
 )
 
 const (
-	defaultImage     = "quay.io/konveyor/rsync-transfer:latest"
-	configMountPath  = "/etc/rclone"
-	dataMountPath    = "/data"
-	configVolumeName = "rclone-config"
-	dataVolumeName   = "data"
-	maxPodNameLen    = 63
+	defaultImage       = "quay.io/konveyor/rsync-transfer:latest"
+	configMountPath    = "/etc/rclone"
+	dataMountPath      = "/data"
+	configVolumeName   = "rclone-config"
+	dataVolumeName     = "data"
+	maxPodNameLen      = 63
+	CryptRemoteName    = "encrypted"
+	CryptRemoteSection = "[encrypted]"
 )
 
 type Options struct {
 	Image                  string
 	CloudStorage           string
 	ConfigSecret           string
-	// TODO: Encrypt enables client-side encryption via rclone crypt overlay.
-	// When set, crane should append a [encrypted] crypt remote section to rclone.conf
-	// and use "encrypted:" as the remote path instead of the direct S3 path.
 	Encrypt                bool
 	// TODO: KeepCloudData skips cloud storage cleanup after transfer.
 	// When false, a cleanup pod should run "rclone delete remote:bucket/ns/pvc/"
@@ -154,4 +153,13 @@ func buildRcloneCommand(subcommand, src, dst string) []string {
 		"--links",
 		"-v",
 	}
+}
+
+// BuildCryptSection returns the rclone config section that enables client-side
+// encryption. The caller appends this to the existing rclone.conf before
+// creating the K8s Secret. obscuredPassword must be in rclone's obscured format
+// (produced by "rclone obscure <plaintext>").
+func BuildCryptSection(cloudStoragePath, obscuredPassword string) string {
+	return fmt.Sprintf("\n%s\ntype = crypt\nremote = %s\npassword = %s\n",
+		CryptRemoteSection, cloudStoragePath, obscuredPassword)
 }

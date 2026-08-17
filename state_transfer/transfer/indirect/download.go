@@ -12,6 +12,9 @@ func (t *IndirectTransfer) Download(ctx context.Context, pvc *corev1.PersistentV
 		return nil, fmt.Errorf("invalid options for download: %w", err)
 	}
 	remotePath := fmt.Sprintf("%s/%s/%s", t.options.CloudStorage, sourceNamespace, remotePVCName)
+	if t.options.Encrypt {
+		remotePath = CryptRemoteName + ":"
+	}
 	command := buildRcloneCommand("sync", remotePath, dataMountPath)
 
 	pod := t.buildPod(

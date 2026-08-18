@@ -35,6 +35,9 @@ type Options struct {
 	DownloadSecurityContext corev1.PodSecurityContext
 }
 
+// Validate checks required fields. When Encrypt is true, the caller is
+// responsible for appending a valid [encrypted] crypt section to the
+// rclone.conf before creating the ConfigSecret.
 func (o *Options) Validate() error {
 	if o.CloudStorage == "" {
 		return fmt.Errorf("cloud storage path is required")
@@ -159,7 +162,13 @@ func buildRcloneCommand(subcommand, src, dst string) []string {
 // encryption. The caller appends this to the existing rclone.conf before
 // creating the K8s Secret. obscuredPassword must be in rclone's obscured format
 // (produced by "rclone obscure <plaintext>").
-func BuildCryptSection(cloudStoragePath, obscuredPassword string) string {
+func BuildCryptSection(cloudStoragePath, obscuredPassword string) (string, error) {
+	if cloudStoragePath == "" {
+		return "", fmt.Errorf("cloud storage path is required for encryption config")
+	}
+	if obscuredPassword == "" {
+		return "", fmt.Errorf("obscured password is required for encryption config")
+	}
 	return fmt.Sprintf("\n%s\ntype = crypt\nremote = %s\npassword = %s\n",
-		CryptRemoteSection, cloudStoragePath, obscuredPassword)
+		CryptRemoteSection, cloudStoragePath, obscuredPassword), nil
 }

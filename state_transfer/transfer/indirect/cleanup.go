@@ -9,6 +9,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// Cleanup deletes transfer pods and secrets scoped by PVC label.
+// NOTE: This does not clean up data on S3. When encryption is enabled,
+// file names on S3 are encrypted and won't match the original names —
+// a future cloud cleanup step should use the direct S3 path, not the
+// crypt overlay.
 func (t *IndirectTransfer) Cleanup(ctx context.Context, c client.Client, namespace, pvcName string) error {
 	if len(t.options.Labels) == 0 {
 		return fmt.Errorf("refusing to cleanup with empty labels: would match all resources in namespace %s", namespace)

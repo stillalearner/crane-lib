@@ -180,3 +180,97 @@ func TestOptionsValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildCryptSection(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		password string
+		wantErr  bool
+		wantContains []string
+	}{
+		{
+			name:     "valid inputs",
+			path:     "remote:my-bucket/ns/pvc",
+			password: "abc123obscured",
+			wantContains: []string{
+				"[encrypted]",
+				"type = crypt",
+				"remote = remote:my-bucket/ns/pvc",
+				"password = abc123obscured",
+			},
+		},
+		{
+			name:     "path with special characters",
+			path:     "remote:bucket/my-ns/pvc-with-colons:and:stuff",
+			password: "xyz789",
+			wantContains: []string{
+				"remote = remote:bucket/my-ns/pvc-with-colons:and:stuff",
+				"password = xyz789",
+			},
+		},
+		{
+			name:    "empty path",
+			path:    "",
+			password: "abc123",
+			wantErr: true,
+		},
+		{
+			name:    "empty password",
+			path:    "remote:bucket/ns/pvc",
+			password: "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := BuildCryptSection(tt.path, tt.password)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BuildCryptSection() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			for _, want := range tt.wantContains {
+				if !contains(got, want) {
+					t.Errorf("BuildCryptSection() output missing %q, got:\n%s", want, got)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildRcloneCommand_EncryptPath(t *testing.T) {
+	// When encrypt is enabled, the remote path should be "encrypted:"
+	// This tests the command construction with the encrypted remote
+	cmd := buildRcloneCommand("sync", dataMountPath, CryptRemoteName+":")
+	if cmd[2] != dataMountPath {
+		t.Errorf("src = %q, want %q", cmd[2], dataMountPath)
+	}
+	if cmd[3] != "encrypted:" {
+		t.Errorf("dst = %q, want %q", cmd[3], "encrypted:")
+	}
+
+	// Download direction
+	cmd = buildRcloneCommand("sync", CryptRemoteName+":", dataMountPath)
+	if cmd[2] != "encrypted:" {
+		t.Errorf("src = %q, want %q", cmd[2], "encrypted:")
+	}
+	if cmd[3] != dataMountPath {
+		t.Errorf("dst = %q, want %q", cmd[3], dataMountPath)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && searchString(s, substr)
+}
+
+func searchString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

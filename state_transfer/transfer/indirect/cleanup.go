@@ -26,8 +26,10 @@ func (t *IndirectTransfer) CleanupCloudData(ctx context.Context, c client.Client
 	emptyDir := "/tmp/empty"
 	command := []string{
 		"sh", "-c",
-		fmt.Sprintf("mkdir -p %s && rclone sync %s %s --config %s/rclone.conf -v",
-			emptyDir, emptyDir, remotePath, configMountPath),
+		fmt.Sprintf("mkdir -p %s && exec rclone sync %s \"$1\" --config %s/rclone.conf -v",
+			emptyDir, emptyDir, configMountPath),
+		"--",
+		remotePath,
 	}
 
 	podLabels := copyLabels(t.options.Labels)

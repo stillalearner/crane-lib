@@ -147,14 +147,36 @@ func (t *IndirectTransfer) buildPod(name, namespace, pvcName string, command []s
 	}
 }
 
-func buildRcloneCommand(subcommand, src, dst string) []string {
-	return []string{
+func buildRcloneCommand(subcommand, src, dst string, extraArgs ...string) []string {
+	cmd := []string{
 		"rclone", subcommand,
 		src, dst,
 		"--config", configMountPath + "/rclone.conf",
 		"--progress",
 		"--links",
+		"--metadata",
 		"-v",
+	}
+	return append(cmd, extraArgs...)
+}
+
+// metadataSetArgs returns --metadata-set flags that override uid/gid to the
+// pod's own UID so chown becomes a no-op. Without this, rclone treats chown
+// failure as fatal and deletes the file.
+func metadataSetArgs(secCtx corev1.PodSecurityContext) []string {
+	uid := int64(65534) // default: nobody
+	if secCtx.RunAsUser != nil {
+		uid = *secCtx.RunAsUser
+	}
+	gid := uid
+	if secCtx.RunAsGroup != nil {
+		gid = *secCtx.RunAsGroup
+	} else if secCtx.FSGroup != nil {
+		gid = *secCtx.FSGroup
+	}
+	return []string{
+		"--metadata-set", fmt.Sprintf("uid=%d", uid),
+		"--metadata-set", fmt.Sprintf("gid=%d", gid),
 	}
 }
 

@@ -21,7 +21,7 @@ func TestBuildRcloneCommand(t *testing.T) {
 			subcommand: "sync",
 			src:        "/data",
 			dst:        "remote:bucket/ns/pvc",
-			wantLen:    9,
+			wantLen:    10,
 			wantFirst:  "rclone",
 		},
 		{
@@ -29,7 +29,7 @@ func TestBuildRcloneCommand(t *testing.T) {
 			subcommand: "sync",
 			src:        "remote:bucket/ns/pvc",
 			dst:        "/data",
-			wantLen:    9,
+			wantLen:    10,
 			wantFirst:  "rclone",
 		},
 	}

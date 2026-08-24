@@ -263,6 +263,58 @@ func TestBuildRcloneCommand_EncryptPath(t *testing.T) {
 	}
 }
 
+func TestMetadataSetArgs(t *testing.T) {
+	uid := int64(999)
+	gid := int64(1000)
+	fsGroup := int64(2000)
+
+	tests := []struct {
+		name     string
+		secCtx   corev1.PodSecurityContext
+		wantUID  string
+		wantGID  string
+	}{
+		{
+			name:    "both RunAsUser and RunAsGroup set",
+			secCtx:  corev1.PodSecurityContext{RunAsUser: &uid, RunAsGroup: &gid},
+			wantUID: "uid=999",
+			wantGID: "gid=1000",
+		},
+		{
+			name:    "RunAsUser set, RunAsGroup nil, FSGroup set — uses FSGroup",
+			secCtx:  corev1.PodSecurityContext{RunAsUser: &uid, FSGroup: &fsGroup},
+			wantUID: "uid=999",
+			wantGID: "gid=2000",
+		},
+		{
+			name:    "RunAsUser set, both RunAsGroup and FSGroup nil — gid defaults to uid",
+			secCtx:  corev1.PodSecurityContext{RunAsUser: &uid},
+			wantUID: "uid=999",
+			wantGID: "gid=999",
+		},
+		{
+			name:    "RunAsUser nil — defaults to nobody (65534)",
+			secCtx:  corev1.PodSecurityContext{},
+			wantUID: "uid=65534",
+			wantGID: "gid=65534",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := metadataSetArgs(tt.secCtx)
+			if len(got) != 4 {
+				t.Fatalf("expected 4 args, got %d: %v", len(got), got)
+			}
+			if got[1] != tt.wantUID {
+				t.Errorf("uid arg = %q, want %q", got[1], tt.wantUID)
+			}
+			if got[3] != tt.wantGID {
+				t.Errorf("gid arg = %q, want %q", got[3], tt.wantGID)
+			}
+		})
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }
